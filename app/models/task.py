@@ -1,9 +1,11 @@
 from sqlalchemy.orm import Mapped, mapped_column
 
-from .base import Base
+from app.models.base import Base
 
 
 class TaskORM(Base):
+    """Модель задачи в БД"""
+
     __tablename__ = "tasks"
 
     title: Mapped[str]

@@ -1,12 +1,14 @@
 from dataclasses import dataclass
 
-@dataclass (frozen=True)
+
+@dataclass(frozen=True)
 class Settings:
-    DATABASE_URL: str
-    cors_allowed_origin: list[str]
+    database_url: str
+    cors_origins: list[str]
+
 
 def get_settings() -> Settings:
     return Settings(
-        DATABASE_URL="postgresql+psycopg://postgres:admin@127.0.0.1:5432/postgres",
-        cors_allowed_origin=["http://localhost:3000"],
+        database_url="postgresql+psycopg://postgres:admin@127.0.0.1:5432/postgres",
+        cors_origins=["http://localhost:3000"],
     )

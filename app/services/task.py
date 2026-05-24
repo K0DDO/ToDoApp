@@ -1,37 +1,53 @@
+from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
-from app.schemas.task import TaskSchema, TaskCreateSchema, TaskUpdateSchema
-from app.repositories.task import TaskRepository
 
-class TaskNotFound(Exception):
-    """Задача не найдена в БД"""
+from app.repositories.task import TaskRepository
+from app.schemas.task import TaskCreate, TaskRead, TaskUpdate
+
+
+class TaskNotFoundError(Exception):
+    pass
+
 
 class TaskService:
-    def __init__(self, db: Session) -> None:
+    """Ключевые операции с задачами, включая бизнес-логику, валидацию и прочее"""
+
+    def __init__(self, db: Session):
         self.db = db
-        self.task_repository = TaskRepository(db)
+        self.repository = TaskRepository(db)
 
-    def list_tasks(self) -> list[TaskSchema]:
-        tasks_orm = self.task_repository.get_all()
-        return [TaskSchema.model_validate(task) for task in tasks_orm]
+    def list_tasks(self) -> list[TaskRead]:
+        tasks = self.repository.get_all()
+        return [TaskRead.model_validate(task) for task in tasks]
 
-    def create_task(self, task_create: TaskCreateSchema) -> TaskSchema:
-        task_orm = self.task_repository.create(title=task_create.title)
-        return TaskSchema.model_validate(task_orm)
+    def create_task(self, payload: TaskCreate) -> TaskRead:
+        task = self.repository.create(title=payload.title)
+        self.db.commit()
+        return TaskRead.model_validate(task)
 
-    def update_task(self, task_id: str, task_update: TaskUpdateSchema) -> TaskSchema:
-        task_for_update = self.task_repository.get_by_id(task_id=task_id)
-        if task_for_update is None:
-            raise TaskNotFound(f"Task with id {task_id} not found")
-        if task_update.title is not None:
-            task_for_update.title = task_update.title
-        if task_update.completed is not None:
-            task_for_update.completed = task_update.completed
+    def update_task(self, task_id: str, payload: TaskUpdate) -> TaskRead:
+        task = self.repository.get_by_id(task_id)
+        if task is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Задание не найдено",
+            )
+
+        if payload.title is not None:
+            task.title = payload.title
+        if payload.completed is not None:
+            task.completed = payload.completed
 
         self.db.commit()
-        return TaskSchema.model_validate(task_for_update)
+        return TaskRead.model_validate(task)
 
     def delete_task(self, task_id: str) -> None:
-        task_for_delete = self.task_repository.get_by_id(task_id=task_id)
-        if task_for_delete is None:
-            raise TaskNotFound(f"Task with id {task_id} not found")
-        self.task_repository.delete(task_for_delete)
+        task = self.repository.get_by_id(task_id)
+        if task is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Задание не найдено",
+            )
+
+        self.repository.delete(task)
+        self.db.commit()
